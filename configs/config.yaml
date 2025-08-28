@@ -1,0 +1,9 @@
+avito:
+  base_url: "https://www.avito.ru"
+
+parser:
+  search_queries:
+    - "rtx 3080"
+    - "macbook pro m1"
+    - "ps5"
+  parse_frequency_minutes: 15
