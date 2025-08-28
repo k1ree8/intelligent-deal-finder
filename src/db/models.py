@@ -40,10 +40,7 @@ class Ad(Base):
 
 
 if __name__ == "__main__":
-    from sqlalchemy import create_engine
-    
-    DATABASE_URL = "sqlite:///./test.db"
-    engine = create_engine(DATABASE_URL)
+    from src.db.session import engine
 
     print("Creating database tables...")
     Base.metadata.create_all(bind=engine)
