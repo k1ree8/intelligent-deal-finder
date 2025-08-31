@@ -1,7 +1,8 @@
+from typing import List, Dict
 import random
 from datetime import datetime, timedelta
 
-def get_dummy_ads() -> list[dict]:
+def get_dummy_ads() -> List[Dict]:
     """Generates a list of dictionaries that mimic the ad data obtained from Avito."""
     ads = []
     base_avito_id = random.randint(3_000_000_000, 4_000_000_000)
