@@ -1,5 +1,5 @@
 from sqlalchemy.orm import Session
-from src.parsers.avito_parser import get_dummy_ads
+from src.parsers.avito_parser import parse_avito_ads
 from src.db.session import SessionLocal
 from src.db.models import Ad
 
@@ -9,7 +9,8 @@ def process_ads():
     Receives ads, checks for duplicates, and stores new ads in the database.
     """
     print("Начинаем процесс обработки объявлений...")
-    new_ads_data = get_dummy_ads()
+    url_to_parse = "https://www.avito.ru/moskva/tovary_dlya_kompyutera/komplektuyuschie/videokarty-ASgBAgICAkTGB~pm7gmmZw?q=rtx+3080&s=104"
+    new_ads_data = parse_avito_ads(url_to_parse)
 
     with SessionLocal() as db:
         # --- Step 1: Extract the ID of all received ads ---
