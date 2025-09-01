@@ -6,7 +6,7 @@ class Settings(BaseSettings):
     A class for storing and validating application settings.
     Automatically reads environment variables from the .env file
     """
-    model_config = SettingsConfigDict(env_file=".env", env_file_encoding="utf-8")
+    model_config = SettingsConfigDict(env_file=".env", env_file_encoding="utf-8", extra='ignore')
 
     POSTGRES_USER: str
     POSTGRES_PASSWORD: str
