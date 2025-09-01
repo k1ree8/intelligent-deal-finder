@@ -4,6 +4,8 @@ from sqlalchemy.orm import Session
 from src.parsers.avito_parser import parse_avito_ads
 from src.db.session import SessionLocal
 from src.db.models import Ad
+from src.parsers.avito_parser import parse_avito_ads
+from src.core.config import yaml_config
 
 def process_ads() -> List[Dict]:
     """
@@ -11,7 +13,12 @@ def process_ads() -> List[Dict]:
     Receives ads, checks for duplicates, and stores new ads in the database.
     """
     print("Начинаем процесс обработки объявлений...")
-    url_to_parse = "https://www.avito.ru/moskva/tovary_dlya_kompyutera/komplektuyuschie/videokarty-ASgBAgICAkTGB~pm7gmmZw?q=rtx+3080&s=104"
+    base_url = yaml_config['avito']['base_url']
+    city = yaml_config['avito']['search']['city']
+    query = yaml_config['avito']['search']['query']
+    sort_param = yaml_config['parser']['sort_by_date']
+    query_formatted = query.replace(' ', '+')
+    url_to_parse = f"{base_url}/{city}?q={query_formatted}{sort_param}"
     new_ads_data = parse_avito_ads(url_to_parse)
 
     with SessionLocal() as db:

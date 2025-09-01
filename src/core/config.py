@@ -1,5 +1,15 @@
+import yaml
+from pathlib import Path
 from pydantic_settings import BaseSettings, SettingsConfigDict
 from pydantic import PostgresDsn
+
+def load_yaml_config(config_path: str = "/opt/airflow/configs/config.yaml") -> dict:
+    """Загружает конфигурацию из YAML файла."""
+    path = Path(config_path)
+    if not path.is_file():
+        raise FileNotFoundError(f"Config file not found at {config_path}")
+    with open(path, 'r', encoding='utf-8') as f:
+        return yaml.safe_load(f)
 
 class Settings(BaseSettings):
     """
@@ -25,3 +35,4 @@ class Settings(BaseSettings):
         return f"postgresql+psycopg2://{self.POSTGRES_USER}:{self.POSTGRES_PASSWORD}@{self.POSTGRES_HOST}:{self.POSTGRES_PORT}/{self.POSTGRES_DB}"
 
 settings = Settings()
+yaml_config = load_yaml_config()

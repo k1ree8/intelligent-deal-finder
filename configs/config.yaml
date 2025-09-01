@@ -1,9 +1,8 @@
 avito:
   base_url: "https://www.avito.ru"
+  search:
+    query: "airpods pro 2"
+    city: "moskva"
 
 parser:
-  search_queries:
-    - "rtx 3080"
-    - "macbook pro m1"
-    - "ps5"
-  parse_frequency_minutes: 15
+  sort_by_date: "&s=104"
