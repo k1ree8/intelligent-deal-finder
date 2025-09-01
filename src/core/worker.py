@@ -1,9 +1,11 @@
+import json
+from typing import List, Dict
 from sqlalchemy.orm import Session
 from src.parsers.avito_parser import parse_avito_ads
 from src.db.session import SessionLocal
 from src.db.models import Ad
 
-def process_ads():
+def process_ads() -> List[Dict]:
     """
     The main handler function.
     Receives ads, checks for duplicates, and stores new ads in the database.
@@ -30,7 +32,7 @@ def process_ads():
 
         if not ads_to_add:
             print("Новых объявлений для добавления нет.")
-            return
+            return []
 
         print(f"Будет добавлено {len(ads_to_add)} новых объявлений.")
 
@@ -42,9 +44,13 @@ def process_ads():
             
             db.commit()
             print("Новые объявления успешно сохранены в базу данных.")
+            print(json.dumps(ads_to_add))
+            return ads_to_add
         except Exception as e:
             print(f"Произошла ошибка при сохранении: {e}")
             db.rollback()
+            print(json.dumps([]))
+            return []
 
 if __name__ == "__main__":
     process_ads()

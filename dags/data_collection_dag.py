@@ -1,18 +1,54 @@
 # dags/data_collection_dag.py
 from datetime import datetime
-
-from airflow.models.dag import DAG
+import json # <-- Добавляем импорт
+from airflow.decorators import dag, task
 from airflow.operators.bash import BashOperator
 
-with DAG(
+@dag(
     dag_id='process_avito_ads',
-    description='DAG для сбора и обработки объявлений с Avito.',
-    schedule_interval=None, # Пока отключим расписание, будем запускать вручную
+    description='DAG для сбора, обработки и уведомления о новых объявлениях с Avito.',
+    schedule_interval=None,
     start_date=datetime(2023, 1, 1),
     catchup=False,
     tags=['avito', 'data-collection'],
-) as dag:
-    run_worker_task = BashOperator(
-        task_id='run_worker',
+)
+def process_avito_ads_dag():
+    gather_data_task = BashOperator(
+        task_id='gather_data_task',
         bash_command='PYTHONPATH="/opt/airflow" python /opt/airflow/src/core/worker.py',
+        do_xcom_push=True,
     )
+
+    @task
+    def send_notifications_task(ads_json_str: str):
+        """
+        Принимает JSON-строку с объявлениями, парсит ее и отправляет уведомления.
+        """
+        # Явно преобразуем JSON-строку в Python-объект
+        try:
+            new_ads = json.loads(ads_json_str)
+        except (json.JSONDecodeError, TypeError):
+            new_ads = []
+
+        if not new_ads:
+            print("Новых объявлений нет, уведомление не отправляем.")
+            return
+
+        print(f"Отправляем уведомления для {len(new_ads)} объявлений.")
+        
+        import sys
+        sys.path.insert(0, '/opt/airflow/src')
+        from src.core.sender import send_telegram_message
+
+        for ad in new_ads:
+            message = (
+                f"<b>🔥 Новое объявление: {ad.get('title', 'Без заголовка')} 🔥</b>\n\n"
+                f"<b>Цена:</b> {ad.get('price', 'Не указана')} руб.\n"
+                f"<a href='{ad.get('url', '#')}'>🔗 Ссылка на объявление</a>"
+            )
+            send_telegram_message(message)
+    
+    # Вызываем вторую задачу, передавая ей результат первой
+    send_notifications_task(gather_data_task.output)
+
+process_avito_ads_dag()

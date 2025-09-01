@@ -13,6 +13,8 @@ class Settings(BaseSettings):
     POSTGRES_HOST: str
     POSTGRES_DB: str
     POSTGRES_PORT: int = 5432
+    TELEGRAM_BOT_TOKEN: str
+    TELEGRAM_CHAT_ID: str
 
     @property
     def database_url(self) -> PostgresDsn:
