@@ -7,7 +7,9 @@ def load_yaml_config(config_path: str = "/opt/airflow/configs/config.yaml") -> d
     """Загружает конфигурацию из YAML файла."""
     path = Path(config_path)
     if not path.is_file():
-        raise FileNotFoundError(f"Config file not found at {config_path}")
+        local_path = Path("configs/config.yaml")
+        if not local_path.is_file():
+            raise FileNotFoundError(f"Config file not found at {config_path} or {local_path}")
     with open(path, 'r', encoding='utf-8') as f:
         return yaml.safe_load(f)
 
@@ -33,6 +35,24 @@ class Settings(BaseSettings):
         Format: postgresql+psycopg2://user:password@host:port/dbname
         """
         return f"postgresql+psycopg2://{self.POSTGRES_USER}:{self.POSTGRES_PASSWORD}@{self.POSTGRES_HOST}:{self.POSTGRES_PORT}/{self.POSTGRES_DB}"
+    
+    def get_parser_url(self, use_sort: bool = False) -> str:
+        """
+        Собирает URL для парсера на основе данных из config.yaml.
+        
+        Args:
+            use_sort: Использовать ли сортировку по дате.
+        """
+        yaml_config = load_yaml_config()
+        base_url = yaml_config['avito']['base_url']
+        city = yaml_config['avito']['search']['city']
+        query = yaml_config['avito']['search']['query'].replace(' ', '+')
+
+        url = f"{base_url}/{city}?q={query}"
+        if use_sort:
+            sort_param = yaml_config['parser']['sort_by_date']
+            url += sort_param
+        
+        return url
 
 settings = Settings()
-yaml_config = load_yaml_config()

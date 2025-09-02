@@ -18,6 +18,12 @@ def process_avito_ads_dag():
         bash_command='PYTHONPATH="/opt/airflow" python /opt/airflow/src/core/worker.py',
         do_xcom_push=True,
     )
+    
+    backfill_data_task = BashOperator(
+        task_id='backfill_data_task',
+        bash_command='PYTHONPATH="/opt/airflow" python /opt/airflow/src/core/worker.py --sort',
+        do_xcom_push=True,
+    )
 
     @task
     def send_notifications_task(ads_json_str: str):

@@ -5,20 +5,18 @@ from src.parsers.avito_parser import parse_avito_ads
 from src.db.session import SessionLocal
 from src.db.models import Ad
 from src.parsers.avito_parser import parse_avito_ads
-from src.core.config import yaml_config
+from src.core.config import settings
 
-def process_ads() -> List[Dict]:
+def process_ads(use_sort: bool = False) -> List[Dict]:
     """
-    The main handler function.
-    Receives ads, checks for duplicates, and stores new ads in the database.
+    Основная функция-обработчик.
+    
+    Args:
+        use_sort: Использовать ли сортировку по дате (для backfill).
     """
     print("Начинаем процесс обработки объявлений...")
-    base_url = yaml_config['avito']['base_url']
-    city = yaml_config['avito']['search']['city']
-    query = yaml_config['avito']['search']['query']
-    sort_param = yaml_config['parser']['sort_by_date']
-    query_formatted = query.replace(' ', '+')
-    url_to_parse = f"{base_url}/{city}?q={query_formatted}{sort_param}"
+    url_to_parse = settings.get_parser_url(use_sort=use_sort)
+    print(f"Парсим URL: {url_to_parse}")
     new_ads_data = parse_avito_ads(url_to_parse)
 
     with SessionLocal() as db:
@@ -60,4 +58,13 @@ def process_ads() -> List[Dict]:
             return []
 
 if __name__ == "__main__":
-    process_ads()
+    import argparse
+    parser = argparse.ArgumentParser()
+    parser.add_argument(
+        '--sort', 
+        action='store_true', 
+        help='Использовать сортировку по дате для начальной загрузки.'
+    )
+    args = parser.parse_args()
+    
+    process_ads(use_sort=args.sort)
