@@ -3,6 +3,7 @@ from pathlib import Path
 from pydantic_settings import BaseSettings, SettingsConfigDict
 from pydantic import PostgresDsn
 
+
 def load_yaml_config() -> dict:
     """
     Загружает конфигурацию из YAML файла.
@@ -21,16 +22,20 @@ def load_yaml_config() -> dict:
         raise FileNotFoundError(
             f"Config file not found. Looked in: {docker_config_path} and {local_config_path}"
         )
-    
-    with open(config_path, 'r', encoding='utf-8') as f:
+
+    with open(config_path, "r", encoding="utf-8") as f:
         return yaml.safe_load(f)
+
 
 class Settings(BaseSettings):
     """
     A class for storing and validating application settings.
     Automatically reads environment variables from the .env file
     """
-    model_config = SettingsConfigDict(env_file=".env", env_file_encoding="utf-8", extra='ignore')
+
+    model_config = SettingsConfigDict(
+        env_file=".env", env_file_encoding="utf-8", extra="ignore"
+    )
 
     POSTGRES_USER: str
     POSTGRES_PASSWORD: str
@@ -47,24 +52,25 @@ class Settings(BaseSettings):
         Format: postgresql+psycopg2://user:password@host:port/dbname
         """
         return f"postgresql+psycopg2://{self.POSTGRES_USER}:{self.POSTGRES_PASSWORD}@{self.POSTGRES_HOST}:{self.POSTGRES_PORT}/{self.POSTGRES_DB}"
-    
+
     def get_parser_url(self, use_sort: bool = False) -> str:
         """
         Собирает URL для парсера на основе данных из config.yaml.
-        
+
         Args:
             use_sort: Использовать ли сортировку по дате.
         """
         yaml_config = load_yaml_config()
-        base_url = yaml_config['avito']['base_url']
-        city = yaml_config['avito']['search']['city']
-        query = yaml_config['avito']['search']['query'].replace(' ', '+')
+        base_url = yaml_config["avito"]["base_url"]
+        city = yaml_config["avito"]["search"]["city"]
+        query = yaml_config["avito"]["search"]["query"].replace(" ", "+")
 
         url = f"{base_url}/{city}?q={query}"
         if use_sort:
-            sort_param = yaml_config['parser']['sort_by_date']
+            sort_param = yaml_config["parser"]["sort_by_date"]
             url += sort_param
-        
+
         return url
+
 
 settings = Settings()

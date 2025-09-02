@@ -11,6 +11,7 @@ router = APIRouter(
     tags=["ads"],
 )
 
+
 # --- Dependency ---
 def get_db():
     """
@@ -22,6 +23,7 @@ def get_db():
         yield db
     finally:
         db.close()
+
 
 @router.get("/", response_model=List[schemas.AdRead])
 def read_ads(skip: int = 0, limit: int = 10, db: Session = Depends(get_db)):

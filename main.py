@@ -9,6 +9,7 @@ app = FastAPI(
 
 app.include_router(ads_router, prefix="/api/v1")
 
+
 @app.get("/")
 def read_root():
     """

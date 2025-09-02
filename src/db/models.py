@@ -13,11 +13,13 @@ from sqlalchemy.sql import func
 
 Base = declarative_base()
 
+
 class Ad(Base):
     """
     Data model for storing information about an ad from Avito.
     """
-    __tablename__ = 'ads'
+
+    __tablename__ = "ads"
 
     id = Column(Integer, primary_key=True, autoincrement=True)
     avito_id = Column(BigInteger, unique=True, nullable=False, index=True)
@@ -31,7 +33,7 @@ class Ad(Base):
     seller_name = Column(String(100), nullable=True)
     delivery_available = Column(Boolean, default=False)
     parameters = Column(JSON, nullable=True)
-    
+
     created_at = Column(DateTime(timezone=True), server_default=func.now())
     updated_at = Column(DateTime(timezone=True), onupdate=func.now())
 
