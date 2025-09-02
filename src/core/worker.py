@@ -6,6 +6,8 @@ from src.db.session import SessionLocal
 from src.db.models import Ad
 from src.parsers.avito_parser import parse_avito_ads
 from src.core.config import settings
+from src.core.logger import log
+from datetime import datetime
 
 def process_ads(use_sort: bool = False) -> List[Dict]:
     """
@@ -14,9 +16,9 @@ def process_ads(use_sort: bool = False) -> List[Dict]:
     Args:
         use_sort: Использовать ли сортировку по дате (для backfill).
     """
-    print("Начинаем процесс обработки объявлений...")
+    log.info("Начинаем процесс обработки объявлений...")
     url_to_parse = settings.get_parser_url(use_sort=use_sort)
-    print(f"Парсим URL: {url_to_parse}")
+    log.info(f"Парсим URL: {url_to_parse}")
     new_ads_data = parse_avito_ads(url_to_parse)
 
     with SessionLocal() as db:
@@ -27,7 +29,7 @@ def process_ads(use_sort: bool = False) -> List[Dict]:
         existing_ads = db.query(Ad.avito_id).filter(Ad.avito_id.in_(new_avito_ids)).all()
         existing_avito_ids = {ad_id for (ad_id,) in existing_ads}
         
-        print(f"Найдено {len(existing_avito_ids)} уже существующих объявлений в БД.")
+        log.info(f"Найдено {len(existing_avito_ids)} уже существующих объявлений в БД.")
 
         # --- Step 3: Determine which ads are truly new ---
         ads_to_add = [
@@ -36,10 +38,10 @@ def process_ads(use_sort: bool = False) -> List[Dict]:
         ]
 
         if not ads_to_add:
-            print("Новых объявлений для добавления нет.")
+            log.info("Новых объявлений для добавления нет.")
             return []
 
-        print(f"Будет добавлено {len(ads_to_add)} новых объявлений.")
+        log.info(f"Будет добавлено {len(ads_to_add)} новых объявлений.")
 
         # --- Step 4: Add only new ads ---
         try:
@@ -48,11 +50,14 @@ def process_ads(use_sort: bool = False) -> List[Dict]:
                 db.add(ad_model)
             
             db.commit()
-            print("Новые объявления успешно сохранены в базу данных.")
-            print(json.dumps(ads_to_add))
+            log.info("Новые объявления успешно сохранены в базу данных.")
+            def json_converter(o):
+                if isinstance(o, datetime):
+                    return o.isoformat()
+            print(json.dumps(ads_to_add, default=json_converter))
             return ads_to_add
         except Exception as e:
-            print(f"Произошла ошибка при сохранении: {e}")
+            log.error(f"Произошла ошибка при сохранении: {e}", exc_info=True)
             db.rollback()
             print(json.dumps([]))
             return []

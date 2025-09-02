@@ -3,14 +3,26 @@ from pathlib import Path
 from pydantic_settings import BaseSettings, SettingsConfigDict
 from pydantic import PostgresDsn
 
-def load_yaml_config(config_path: str = "/opt/airflow/configs/config.yaml") -> dict:
-    """Загружает конфигурацию из YAML файла."""
-    path = Path(config_path)
-    if not path.is_file():
-        local_path = Path("configs/config.yaml")
-        if not local_path.is_file():
-            raise FileNotFoundError(f"Config file not found at {config_path} or {local_path}")
-    with open(path, 'r', encoding='utf-8') as f:
+def load_yaml_config() -> dict:
+    """
+    Загружает конфигурацию из YAML файла.
+    Сначала ищет путь для Docker (Airflow), потом для локального запуска.
+    """
+    # Путь внутри Docker контейнера
+    docker_config_path = Path("/opt/airflow/configs/config.yaml")
+    # Путь для локального запуска
+    local_config_path = Path("configs/config.yaml")
+
+    if docker_config_path.is_file():
+        config_path = docker_config_path
+    elif local_config_path.is_file():
+        config_path = local_config_path
+    else:
+        raise FileNotFoundError(
+            f"Config file not found. Looked in: {docker_config_path} and {local_config_path}"
+        )
+    
+    with open(config_path, 'r', encoding='utf-8') as f:
         return yaml.safe_load(f)
 
 class Settings(BaseSettings):

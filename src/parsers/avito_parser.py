@@ -2,6 +2,7 @@ from typing import List, Dict
 import random
 from datetime import datetime, timedelta
 import time
+from src.core.logger import log
 
 import requests
 from bs4 import BeautifulSoup
@@ -39,7 +40,7 @@ def get_dummy_ads() -> List[Dict]:
         }
         ads.append(ad)
     
-    print(f"Сгенерировано {len(ads)} фейковых объявлений.")
+    log.info(f"Сгенерировано {len(ads)} фейковых объявлений.")
     return ads
 
 def parse_avito_ads(url: str) -> List[Dict]:
@@ -50,23 +51,23 @@ def parse_avito_ads(url: str) -> List[Dict]:
     
     try:
         sleep_time = random.uniform(1, 4)
-        print(f"Делаем паузу на {sleep_time:.2f} секунд...")
+        log.info(f"Делаем паузу на {sleep_time:.2f} секунд...")
         time.sleep(sleep_time)
 
         response = requests.get(url, headers=headers)
         response.raise_for_status()
     except requests.RequestException as e:
-        print(f"Ошибка при запросе к {url}: {e}")
+        log.error(f"Ошибка при запросе к {url}: {e}")
         return [] # Возвращаем пустой список в случае ошибки
 
     soup = BeautifulSoup(response.text, 'lxml')
     ads_blocks = soup.find_all('div', {'data-marker': 'item'})
     
     if not ads_blocks:
-        print("Не найдено ни одного блока с объявлениями.")
+        log.info("Не найдено ни одного блока с объявлениями.")
         return []
 
-    print(f"Найдено {len(ads_blocks)} объявлений на странице.")
+    log.info(f"Найдено {len(ads_blocks)} объявлений на странице.")
     
     # --- НОВЫЙ КОД: ЦИКЛ И ФОРМАТИРОВАНИЕ ---
     parsed_ads = []
@@ -103,7 +104,7 @@ def parse_avito_ads(url: str) -> List[Dict]:
             print(f"Пропущено объявление из-за ошибки парсинга: {e}")
             continue
 
-    print(f"Успешно распарсено {len(parsed_ads)} объявлений.")
+    log.info(f"Успешно распарсено {len(parsed_ads)} объявлений.")
     return parsed_ads
 
 
@@ -113,7 +114,7 @@ if __name__ == '__main__':
     results = parse_avito_ads(test_url)
     
     if results:
-        print("\n--- Пример результата (первое объявление) ---")
+        log.info("\n--- Пример результата (первое объявление) ---")
         
         # --- ИЗМЕНЕНИЕ ЗДЕСЬ ---
         # Преобразуем datetime в строку ПЕРЕД печатью
@@ -121,4 +122,4 @@ if __name__ == '__main__':
         first_ad['published_at'] = first_ad['published_at'].isoformat()
         
         import json
-        print(json.dumps(first_ad, indent=2, ensure_ascii=False))
+        log.info(json.dumps(first_ad, indent=2, ensure_ascii=False))
