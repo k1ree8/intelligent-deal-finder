@@ -32,6 +32,9 @@ def process_avito_ads_dag():
         """
         Принимает JSON-строку с объявлениями, парсит ее и отправляет уведомления.
         """
+        import sys
+
+        sys.path.insert(0, "/opt/airflow")
         # Явно преобразуем JSON-строку в Python-объект
         try:
             new_ads = json.loads(ads_json_str)
