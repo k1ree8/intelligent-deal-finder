@@ -1,12 +1,13 @@
 from sqlalchemy import (
-    Column,
-    Integer,
+    JSON,
     BigInteger,
+    Boolean,
+    Column,
+    DateTime,
+    Float,
+    Integer,
     String,
     Text,
-    DateTime,
-    Boolean,
-    JSON,
 )
 from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.sql import func
@@ -31,6 +32,9 @@ class Ad(Base):
     price = Column(Integer, nullable=True)
     published_at = Column(DateTime(timezone=True), nullable=True, index=True)
     seller_name = Column(String(100), nullable=True)
+    seller_rating = Column(Float, nullable=True)
+    seller_reviews_count = Column(Integer, nullable=True)
+    condition = Column(String(50), nullable=True)
     delivery_available = Column(Boolean, default=False)
     parameters = Column(JSON, nullable=True)
 
