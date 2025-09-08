@@ -21,7 +21,7 @@ USER_AGENTS = [
 ]
 
 
-def parse_avito_ads(url: str) -> List[Dict]:
+def parse_avito_ads(url: str, save_html: bool = False) -> List[Dict]:
     """
     Парсит страницу Avito и возвращает список словарей с данными об объявлениях.
     """
@@ -38,6 +38,12 @@ def parse_avito_ads(url: str) -> List[Dict]:
         log.error(f"Ошибка при запросе к {url}: {e}")
         return []
 
+    if save_html:
+        filename = f"avito_page_{datetime.now().strftime('%Y%m%d_%H%M%S')}.html"
+        with open(filename, "w", encoding="utf-8") as f:
+            f.write(response.text)
+        log.info(f"HTML страницы сохранен в файл: {filename}")
+
     soup = BeautifulSoup(response.text, "lxml")
     ads_blocks = soup.find_all("div", {"data-marker": "item"})
 
@@ -52,71 +58,81 @@ def parse_avito_ads(url: str) -> List[Dict]:
 
     for ad_block in ads_blocks:
         try:
-            # --- Используем BeautifulSoup с проверками на None ---
+            # --- ИЗВЛЕКАЕМ ВСЕ НУЖНЫЕ ТЕГИ ---
             title_tag = ad_block.find("a", {"data-marker": "item-title"})
             price_tag = ad_block.find("meta", {"itemprop": "price"})
             avito_id_raw = ad_block.get("id")
             date_tag = ad_block.find("p", {"data-marker": "item-date"})
-
-            if not all([title_tag, avito_id_raw, date_tag]):
-                continue
-
-            # --- ОБРАБОТКА ОСНОВНЫХ ДАННЫХ ---
-            published_at = parse_relative_date(date_tag.text.strip()) or datetime.now()
-            location = (
-                title_tag.get("title", "").split(" в ")[-1].strip()
-                if " в " in title_tag.get("title", "")
-                else "Местоположение не указано"
-            )
-
-            description = "Описание отсутствует"
             description_tag = ad_block.select_one(
                 '[class*="styles-module-root_bottom-"]'
             )
-            if description_tag:
-                description = description_tag.text.strip()
-
-            condition = "Не указано"
             params_tag = ad_block.find("p", {"data-marker": "item-specific-params"})
-            if params_tag:
-                params_text = params_tag.text.lower()
-                if "б/у" in params_text:
-                    condition = "Б/у"
-                elif "новый" in params_text or "новая" in params_text:
-                    condition = "Новый"
-
-            # --- ОБРАБОТКА ДАННЫХ О ПРОДАВЦЕ (самый надежный способ) ---
-            seller_name = "Имя не указано"
-            seller_rating = 0.0
-            seller_reviews_count = 0
+            location_tag = ad_block.select_one(
+                '[class*="geo-root-"] span'
+            )  # Улучшенный селектор
 
             seller_rating_block = ad_block.find(attrs={"data-marker": "seller-rating"})
             if seller_rating_block:
                 seller_link = seller_rating_block.find_previous(
                     "a", href=re.compile(r"/profile/|/user/|/brands/")
                 )
-                if seller_link and seller_link.find("p"):
-                    seller_name = seller_link.find("p").text.strip()
-
-                rating_tag = seller_rating_block.select_one(
+                seller_name_tag = seller_link.find("p") if seller_link else None
+                seller_rating_tag = seller_rating_block.select_one(
                     '[data-marker="seller-rating/score"]'
                 )
-                if rating_tag:
-                    try:
-                        seller_rating = float(rating_tag.text.strip().replace(",", "."))
-                    except (ValueError, AttributeError):
-                        pass
-
-                reviews_tag = seller_rating_block.select_one(
+                seller_reviews_tag = seller_rating_block.select_one(
                     '[data-marker="seller-info/summary"]'
                 )
-                if reviews_tag:
-                    try:
-                        seller_reviews_count = int(
-                            "".join(filter(str.isdigit, reviews_tag.text.strip()))
-                        )
-                    except (ValueError, AttributeError):
-                        pass
+            else:
+                seller_name_tag, seller_rating_tag, seller_reviews_tag = (
+                    None,
+                    None,
+                    None,
+                )
+
+            # --- ПРОВЕРЯЕМ КРИТИЧЕСКИ ВАЖНЫЕ ДАННЫЕ ---
+            if not all([title_tag, avito_id_raw, date_tag]):
+                continue
+
+            # --- ОБРАБОТКА ДАННЫХ ---
+            published_at = parse_relative_date(date_tag.text.strip()) or datetime.now()
+
+            location = (
+                location_tag.text.strip()
+                if location_tag
+                else "Местоположение не указано"
+            )
+
+            condition = "Не указано"
+            if params_tag:
+                params_text = params_tag.text.lower()
+                if "новый" in params_text or "новая" in params_text:
+                    condition = "Новый"
+                elif "/" in params_text:  # Ищем слэш как признак "Б/у"
+                    condition = "Б/у"
+
+            seller_rating = 0.0
+            if seller_rating_tag:
+                try:
+                    seller_rating = float(
+                        seller_rating_tag.text.strip().replace(",", ".")
+                    )
+                except (ValueError, AttributeError):
+                    pass
+
+            seller_reviews_count = 0
+            if seller_reviews_tag:
+                try:
+                    reviews_text = seller_reviews_tag.text.strip()
+                    seller_reviews_count = int(
+                        "".join(filter(str.isdigit, reviews_text))
+                    )
+                except (ValueError, AttributeError):
+                    pass
+
+            seller_name = (
+                seller_name_tag.text.strip() if seller_name_tag else "Имя не указано"
+            )
 
             # --- СБОРКА СЛОВАРЯ ---
             ad_data = {
@@ -124,7 +140,11 @@ def parse_avito_ads(url: str) -> List[Dict]:
                 "title": title_tag.text.strip(),
                 "url": base_url + title_tag["href"],
                 "price": int(price_tag["content"]) if price_tag else None,
-                "description": description,
+                "description": (
+                    description_tag.text.strip()
+                    if description_tag
+                    else "Описание отсутствует"
+                ),
                 "location": location,
                 "published_at": published_at,
                 "seller_name": seller_name,
@@ -142,17 +162,26 @@ def parse_avito_ads(url: str) -> List[Dict]:
     return parsed_ads
 
 
-# --- ТЕСТОВЫЙ БЛОК ---
+# --- ТЕСТОВЫЙ БЛОК ДЛЯ ПОЛНОГО АНАЛИЗА ---
 if __name__ == "__main__":
-    test_url = "https://www.avito.ru/all/telefony/mobilnye_telefony/apple-ASgBAgICAkS0wA3OqzmwwQ2I_Dc?context=H4sIAAAAAAAA_wEmANn_YToxOntzOjE6InkiO3M6MTY6IkFRcHJJTThNMHJNVmo2WnkiO31OhhXxJgAAAA&d=1&p=1&s=104"
+    test_url = "https://www.avito.ru/all/telefony/mobilnye_telefony/apple-ASgBAgICAkS0wA3OqzmwwQ2I_Dc?context=H4sIAAAAAAAA_wEmANn_YToxOntzOjE6InkiO3M6MTY6IkRYZEpJV3IxcWZFMkFtanUiO32A0ydVJgAAAA&d=1&p=1&s=104"
 
-    results = parse_avito_ads(test_url)
+    results = parse_avito_ads(test_url, save_html=True)
 
     if results:
-        print("\n--- Пример результата (первое объявление) ---")
+        timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+        output_filename = f"parsed_ads_{timestamp}.json"
 
-        first_ad = results[0]
-        if isinstance(first_ad.get("published_at"), datetime):
-            first_ad["published_at"] = first_ad["published_at"].isoformat()
+        for ad in results:
+            if isinstance(ad.get("published_at"), datetime):
+                ad["published_at"] = ad["published_at"].isoformat()
 
-        print(json.dumps(first_ad, indent=2, ensure_ascii=False))
+        with open(output_filename, "w", encoding="utf-8") as f:
+            json.dump(results, f, indent=2, ensure_ascii=False)
+
+        print(
+            f"\nАнализ завершен. {len(results)} объявлений сохранено в файл: {output_filename}"
+        )
+        print("Открой сохраненный .html файл в браузере и сравни его с .json файлом.")
+    else:
+        print("Не удалось получить объявления для анализа.")
