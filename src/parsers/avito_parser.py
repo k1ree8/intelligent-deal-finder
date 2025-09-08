@@ -69,11 +69,16 @@ def parse_avito_ads(url: str, save_html: bool = False) -> List[Dict]:
 
             # --- ОБРАБОТКА ДАННЫХ ---
             published_at = parse_relative_date(date_tag.text.strip()) or datetime.now()
-            location = (
-                location_tag.text.strip()
-                if (location_tag := ad_block.select_one('[class*="geo-root-"] span'))
-                else "Местоположение не указано"
-            )
+
+            # --- ГИБРИДНАЯ ЛОГИКА ДЛЯ LOCATION ---
+            location = "Местоположение не указано"
+            location_tag = ad_block.select_one('[class*="geo-root-"] span')
+            if location_tag:
+                location = location_tag.text.strip()
+            else:
+                full_title = title_tag.get("title", "")
+                if " в " in full_title:
+                    location = full_title.split(" в ")[-1].strip()
 
             condition = "Не указано"
             if params_tag := ad_block.find(
@@ -91,7 +96,7 @@ def parse_avito_ads(url: str, save_html: bool = False) -> List[Dict]:
             ):
                 description = description_tag.text.strip()
 
-            # --- ОБРАБОТКА ДАННЫХ О ПРОДАВЦЕ (самый надежный способ) ---
+            # --- ОБРАБОТКА ДАННЫХ О ПРОДАВЦЕ ---
             seller_name = "Имя не указано"
             seller_rating = 0.0
             seller_reviews_count = 0
