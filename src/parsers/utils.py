@@ -1,9 +1,10 @@
 # src/parsers/utils.py
 
 from datetime import datetime, timedelta
+from typing import Union
 
 
-def parse_relative_date(relative_date_str: str) -> datetime | None:
+def parse_relative_date(relative_date_str: str) -> Union[datetime, None]:
     """
     Преобразует строку с относительной датой (напр., "5 минут назад")
     в объект datetime.

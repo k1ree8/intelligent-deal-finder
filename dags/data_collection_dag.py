@@ -17,7 +17,7 @@ from airflow.operators.bash import BashOperator
 def process_avito_ads_dag():
     gather_data_task = BashOperator(
         task_id="gather_data_task",
-        bash_command='PYTHONPATH="/opt/airflow" python /opt/airflow/src/core/worker.py',
+        bash_command='PYTHONPATH="/opt/airflow" python /opt/airflow/src/core/worker.py --pages 3',
         do_xcom_push=True,
     )
 
@@ -60,8 +60,10 @@ def process_avito_ads_dag():
             )
             send_telegram_message(message)
 
+    gather_data_task
+
     # Вызываем вторую задачу, передавая ей результат первой
-    send_notifications_task(gather_data_task.output)
+    # send_notifications_task(gather_data_task.output)
 
 
 process_avito_ads_dag()

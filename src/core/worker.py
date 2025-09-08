@@ -1,53 +1,76 @@
+# src/core/worker.py
+
+import argparse
 import json
-from typing import List, Dict
-from src.parsers.avito_parser import parse_avito_ads
-from src.db.session import SessionLocal
-from src.db.models import Ad
+from datetime import datetime
+from typing import Dict, List
+
 from src.core.config import settings
 from src.core.logger import log
-from datetime import datetime
+from src.db.models import Ad
+from src.db.session import SessionLocal
+from src.parsers.avito_selenium_parser import parse_avito_with_selenium
 
 
-def process_ads(use_sort: bool = False) -> List[Dict]:
+def process_ads(use_sort: bool = False, num_pages: int = 1) -> List[Dict]:
     """
     Основная функция-обработчик.
+    Запускает Selenium-парсер, удаляет дубликаты, проверяет наличие в БД и сохраняет новые.
 
     Args:
-        use_sort: Использовать ли сортировку по дате (для backfill).
+        use_sort: Использовать ли сортировку по дате.
+        num_pages: Количество страниц для парсинга.
+
+    Returns:
+        Список словарей с новыми объявлениями, которые были сохранены.
     """
-    log.info("Начинаем процесс обработки объявлений...")
+    log.info("Начинаем процесс обработки объявлений с помощью Selenium...")
+
     url_to_parse = settings.get_parser_url(use_sort=use_sort)
-    log.info(f"Парсим URL: {url_to_parse}")
-    new_ads_data = parse_avito_ads(url_to_parse)
+    log.info(f"Базовый URL для парсинга: {url_to_parse}")
 
+    new_ads_data = parse_avito_with_selenium(url_to_parse, num_pages=num_pages)
+
+    if not new_ads_data:
+        log.info("Парсер не вернул новых данных. Завершение работы.")
+        print(json.dumps([]))
+        return []
+
+    # --- БЛОК ДЕДУПЛИКАЦИИ ---
+    log.info(
+        f"Получено {len(new_ads_data)} записей от парсера. Начинаем дедупликацию..."
+    )
+    unique_ads_dict = {ad["avito_id"]: ad for ad in new_ads_data}
+    unique_ads_list = list(unique_ads_dict.values())
+    log.info(f"После дедупликации осталось {len(unique_ads_list)} уникальных записей.")
+    # -------------------------
+
+    ads_to_add_data = []
     with SessionLocal() as db:
-        # --- Step 1: Extract the ID of all received ads ---
-        new_avito_ids = {ad["avito_id"] for ad in new_ads_data}
+        new_avito_ids = {ad["avito_id"] for ad in unique_ads_list}
 
-        # --- Step 2: Find out which of these IDs are already in the database ---
-        existing_ads = (
-            db.query(Ad.avito_id).filter(Ad.avito_id.in_(new_avito_ids)).all()
+        existing_ads_query = db.query(Ad.avito_id).filter(
+            Ad.avito_id.in_(new_avito_ids)
         )
-        existing_avito_ids = {ad_id for (ad_id,) in existing_ads}
+        existing_avito_ids = {ad_id for (ad_id,) in existing_ads_query.all()}
 
         log.info(f"Найдено {len(existing_avito_ids)} уже существующих объявлений в БД.")
 
-        # --- Step 3: Determine which ads are truly new ---
-        ads_to_add = [
+        ads_to_add_data = [
             ad_data
-            for ad_data in new_ads_data
+            for ad_data in unique_ads_list
             if ad_data["avito_id"] not in existing_avito_ids
         ]
 
-        if not ads_to_add:
+        if not ads_to_add_data:
             log.info("Новых объявлений для добавления нет.")
+            print(json.dumps([]))
             return []
 
-        log.info(f"Будет добавлено {len(ads_to_add)} новых объявлений.")
+        log.info(f"Будет добавлено {len(ads_to_add_data)} новых объявлений.")
 
-        # --- Step 4: Add only new ads ---
         try:
-            for ad_data in ads_to_add:
+            for ad_data in ads_to_add_data:
                 ad_model = Ad(**ad_data)
                 db.add(ad_model)
 
@@ -58,8 +81,9 @@ def process_ads(use_sort: bool = False) -> List[Dict]:
                 if isinstance(o, datetime):
                     return o.isoformat()
 
-            print(json.dumps(ads_to_add, default=json_converter))
-            return ads_to_add
+            print(json.dumps(ads_to_add_data, default=json_converter))
+            return ads_to_add_data
+
         except Exception as e:
             log.error(f"Произошла ошибка при сохранении: {e}", exc_info=True)
             db.rollback()
@@ -68,14 +92,15 @@ def process_ads(use_sort: bool = False) -> List[Dict]:
 
 
 if __name__ == "__main__":
-    import argparse
-
-    parser = argparse.ArgumentParser()
+    parser = argparse.ArgumentParser(description="Запуск воркера для сбора объявлений.")
     parser.add_argument(
         "--sort",
         action="store_true",
         help="Использовать сортировку по дате для начальной загрузки.",
     )
+    parser.add_argument(
+        "--pages", type=int, default=1, help="Количество страниц для парсинга."
+    )
     args = parser.parse_args()
 
-    process_ads(use_sort=args.sort)
+    process_ads(use_sort=args.sort, num_pages=args.pages)
