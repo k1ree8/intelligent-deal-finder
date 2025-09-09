@@ -1,8 +1,4 @@
 avito:
-  base_url: "https://www.avito.ru"
-  search:
-    query: "airpods pro 2"
-    city: "moskva"
-
-parser:
-  sort_by_date: "&s=104"
+  # Просто один URL, который мы будем парсить.
+  # Ты можешь вставить сюда любую страницу с результатами поиска Avito.
+  target_url: "https://www.avito.ru/all/telefony/mobilnye_telefony/apple-ASgBAgICAkS0wA3OqzmwwQ2I_Dc?context=H4sIAAAAAAAA_wEmANn_YToxOntzOjE6InkiO3M6MTY6IkJEc3lKTnJhOXZDUmxoSHMiO33bUEl4JgAAAA&d=1&p=2&s=104"

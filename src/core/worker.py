@@ -12,13 +12,12 @@ from src.db.session import SessionLocal
 from src.parsers.avito_selenium_parser import parse_avito_with_selenium
 
 
-def process_ads(use_sort: bool = False, num_pages: int = 1) -> List[Dict]:
+def process_ads(num_pages: int = 1) -> List[Dict]:
     """
     Основная функция-обработчик.
     Запускает Selenium-парсер, удаляет дубликаты, проверяет наличие в БД и сохраняет новые.
 
     Args:
-        use_sort: Использовать ли сортировку по дате.
         num_pages: Количество страниц для парсинга.
 
     Returns:
@@ -26,8 +25,8 @@ def process_ads(use_sort: bool = False, num_pages: int = 1) -> List[Dict]:
     """
     log.info("Начинаем процесс обработки объявлений с помощью Selenium...")
 
-    url_to_parse = settings.get_parser_url(use_sort=use_sort)
-    log.info(f"Базовый URL для парсинга: {url_to_parse}")
+    url_to_parse = settings.get_parser_url()
+    log.info(f"Парсим URL из конфига: {url_to_parse}")
 
     new_ads_data = parse_avito_with_selenium(url_to_parse, num_pages=num_pages)
 
@@ -94,13 +93,8 @@ def process_ads(use_sort: bool = False, num_pages: int = 1) -> List[Dict]:
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Запуск воркера для сбора объявлений.")
     parser.add_argument(
-        "--sort",
-        action="store_true",
-        help="Использовать сортировку по дате для начальной загрузки.",
-    )
-    parser.add_argument(
         "--pages", type=int, default=1, help="Количество страниц для парсинга."
     )
     args = parser.parse_args()
 
-    process_ads(use_sort=args.sort, num_pages=args.pages)
+    process_ads(num_pages=args.pages)

@@ -1,7 +1,12 @@
-import yaml
+# src/core/config.py
+
 from pathlib import Path
-from pydantic_settings import BaseSettings, SettingsConfigDict
+
+import yaml
 from pydantic import PostgresDsn
+from pydantic_settings import BaseSettings, SettingsConfigDict
+
+from src.core.logger import log
 
 
 def load_yaml_config() -> dict:
@@ -9,9 +14,7 @@ def load_yaml_config() -> dict:
     Загружает конфигурацию из YAML файла.
     Сначала ищет путь для Docker (Airflow), потом для локального запуска.
     """
-    # Путь внутри Docker контейнера
     docker_config_path = Path("/opt/airflow/configs/config.yaml")
-    # Путь для локального запуска
     local_config_path = Path("configs/config.yaml")
 
     if docker_config_path.is_file():
@@ -29,14 +32,16 @@ def load_yaml_config() -> dict:
 
 class Settings(BaseSettings):
     """
-    A class for storing and validating application settings.
-    Automatically reads environment variables from the .env file
+    Класс для хранения и валидации настроек приложения.
+    Автоматически читает переменные окружения из файла .env
+    и предоставляет методы для доступа к конфигурации из YAML.
     """
 
     model_config = SettingsConfigDict(
         env_file=".env", env_file_encoding="utf-8", extra="ignore"
     )
 
+    # --- Настройки из .env файла ---
     POSTGRES_USER: str
     POSTGRES_PASSWORD: str
     POSTGRES_HOST: str
@@ -47,30 +52,19 @@ class Settings(BaseSettings):
 
     @property
     def database_url(self) -> PostgresDsn:
-        """
-        Generates a URL for connecting to the database.
-        Format: postgresql+psycopg2://user:password@host:port/dbname
-        """
+        """Собирает URL для подключения к базе данных."""
         return f"postgresql+psycopg2://{self.POSTGRES_USER}:{self.POSTGRES_PASSWORD}@{self.POSTGRES_HOST}:{self.POSTGRES_PORT}/{self.POSTGRES_DB}"
 
-    def get_parser_url(self, use_sort: bool = False) -> str:
+    def get_parser_url(self) -> str:
         """
-        Собирает URL для парсера на основе данных из config.yaml.
-
-        Args:
-            use_sort: Использовать ли сортировку по дате.
+        Просто читает и возвращает готовый URL из config.yaml.
         """
         yaml_config = load_yaml_config()
-        base_url = yaml_config["avito"]["base_url"]
-        city = yaml_config["avito"]["search"]["city"]
-        query = yaml_config["avito"]["search"]["query"].replace(" ", "+")
-
-        url = f"{base_url}/{city}?q={query}"
-        if use_sort:
-            sort_param = yaml_config["parser"]["sort_by_date"]
-            url += sort_param
-
-        return url
+        if "avito" in yaml_config and "target_url" in yaml_config["avito"]:
+            return yaml_config["avito"]["target_url"]
+        else:
+            log.error("Ключ 'target_url' не найден в configs/config.yaml!")
+            raise KeyError("target_url not found in config file")
 
 
 settings = Settings()
