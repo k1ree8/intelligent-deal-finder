@@ -1,53 +1,42 @@
+# src/db/models.py
+
 from sqlalchemy import (
-    JSON,
-    BigInteger,
-    Boolean,
     Column,
-    DateTime,
-    Float,
     Integer,
+    BigInteger,
     String,
     Text,
+    DateTime,
+    Float,
 )
 from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.sql import func
 
 Base = declarative_base()
 
-
 class Ad(Base):
     """
-    Data model for storing information about an ad from Avito.
+    Финальная, очищенная модель данных для хранения объявлений.
+    Содержит только те поля, которые мы реально парсим и используем.
     """
+    __tablename__ = 'ads'
 
-    __tablename__ = "ads"
-
-    id = Column(Integer, primary_key=True, autoincrement=True)
-    avito_id = Column(BigInteger, unique=True, nullable=False, index=True)
+    # Основные идентификаторы
+    avito_id = Column(BigInteger, primary_key=True, unique=True, nullable=False, index=True)
     url = Column(String(500), nullable=False)
+
+    # Основные данные объявления
     title = Column(String(255), nullable=False)
+    price = Column(Integer, nullable=True) # Может быть None, если цена не указана
     description = Column(Text, nullable=True)
-    category = Column(String(100), nullable=True)
     location = Column(String(255), nullable=True)
-    price = Column(Integer, nullable=True)
-    published_at = Column(DateTime(timezone=True), nullable=True, index=True)
-    seller_name = Column(String(100), nullable=True)
+    published_at = Column(DateTime(timezone=True), nullable=False, index=True)
+    condition = Column(String(50), nullable=True)
+
+    # Данные о продавце
+    seller_name = Column(String(255), nullable=True)
     seller_rating = Column(Float, nullable=True)
     seller_reviews_count = Column(Integer, nullable=True)
-    condition = Column(String(50), nullable=True)
-    delivery_available = Column(Boolean, default=False)
-    parameters = Column(JSON, nullable=True)
-
-    created_at = Column(DateTime(timezone=True), server_default=func.now())
-    updated_at = Column(DateTime(timezone=True), onupdate=func.now())
 
     def __repr__(self):
         return f"<Ad(id={self.id}, title='{self.title[:30]}...')>"
-
-
-if __name__ == "__main__":
-    from src.db.session import engine
-
-    print("Creating database tables...")
-    Base.metadata.create_all(bind=engine)
-    print("Tables created.")

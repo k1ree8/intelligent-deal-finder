@@ -1,5 +1,6 @@
 # src/parsers/avito_selenium_parser.py
 
+import json
 import random
 import re
 import time
@@ -16,77 +17,68 @@ from src.parsers.utils import parse_relative_date
 
 
 def _parse_single_ad_block(ad_block_soup: BeautifulSoup) -> Union[Dict, None]:
-    """Вспомогательная функция для парсинга HTML-блока одного объявления."""
+    """
+    Вспомогательная функция для парсинга HTML-блока одного объявления.
+    Использует None для отсутствующих значений для удобства анализа.
+    """
     base_url = "https://www.avito.ru"
     try:
-        # --- КРИТИЧЕСКИ ВАЖНЫЕ ДАННЫЕ ---
-        # Если нет заголовка или ID, то это точно не объявление.
         title_tag = ad_block_soup.find("a", {"data-marker": "item-title"})
         avito_id_raw = ad_block_soup.get("id")
         if not all([title_tag, avito_id_raw]):
             return None
 
-        # --- ИЗВЛЕКАЕМ КАЖДОЕ ПОЛЕ БЕЗОПАСНО ---
-
+        # --- ИЗВЛЕКАЕМ КАЖДОЕ ПОЛЕ БЕЗОПАСНО, ИСПОЛЬЗУЯ None КАК ЗНАЧЕНИЕ ПО УМОЛЧАНИЮ ---
+        
         price = None
         if price_tag := ad_block_soup.find("meta", {"itemprop": "price"}):
-            price = int(price_tag["content"])
+            try:
+                price = int(price_tag["content"])
+            except (ValueError, TypeError):
+                pass
 
-        date_tag = ad_block_soup.find("p", {"data-marker": "item-date"})
-        published_at = (
-            parse_relative_date(date_tag.text.strip()) if date_tag else datetime.now()
-        )
-
-        location = "Местоположение не указано"
-        location_tag = ad_block_soup.select_one('[class*="geo-root-"] span')
-        if location_tag:
+        published_at = datetime.now() # Запасное значение
+        if date_tag := ad_block_soup.find("p", {"data-marker": "item-date"}):
+            published_at = parse_relative_date(date_tag.text.strip()) or published_at
+        
+        location = None
+        if location_tag := ad_block_soup.select_one('[class*="geo-root-"] span'):
             location = location_tag.text.strip()
-        else:
-            full_title = title_tag.get("title", "")
-            if " в " in full_title:
-                location = full_title.split(" в ")[-1].strip()
+        elif " в " in (full_title := title_tag.get("title", "")):
+            location = full_title.split(" в ")[-1].strip()
 
-        condition = "Не указано"
-        if params_tag := ad_block_soup.find(
-            "p", {"data-marker": "item-specific-params"}
-        ):
+        condition = None
+        if params_tag := ad_block_soup.find("p", {"data-marker": "item-specific-params"}):
             params_text = params_tag.text.lower()
             if "новый" in params_text or "новая" in params_text:
                 condition = "Новый"
             elif "/" in params_text:
                 condition = "Б/у"
 
-        description = "Описание отсутствует"
-        if description_tag := ad_block_soup.select_one(
-            '[class*="styles-module-root_bottom-"]'
-        ):
+        description = None
+        if description_tag := ad_block_soup.select_one('[class*="styles-module-root_bottom-"]'):
             description = description_tag.text.strip()
 
-        seller_name = "Имя не указано"
-        seller_rating = 0.0
-        seller_reviews_count = 0
-        seller_link = ad_block_soup.select_one(
-            'a[href*="/profile"], a[href*="/user/"], a[href*="/brands/"]'
-        )
+        seller_name = None
+        seller_rating = None
+        seller_reviews_count = None
+        
+        seller_link = ad_block_soup.select_one('a[href*="/profile"], a[href*="/user/"], a[href*="/brands/"]')
         if seller_link:
             if p_tag := seller_link.find("p"):
                 seller_name = p_tag.text.strip()
-            if rating_tag := seller_link.select_one(
-                '[data-marker="seller-rating/score"]'
-            ):
+            
+            if rating_tag := seller_link.select_one('[data-marker="seller-rating/score"]'):
                 try:
                     seller_rating = float(rating_tag.text.strip().replace(",", "."))
-                except:
-                    pass
-            if reviews_tag := seller_link.select_one(
-                '[data-marker="seller-info/summary"]'
-            ):
+                except (ValueError, AttributeError):
+                    pass # seller_rating останется None
+            
+            if reviews_tag := seller_link.select_one('[data-marker="seller-info/summary"]'):
                 try:
-                    seller_reviews_count = int(
-                        "".join(filter(str.isdigit, reviews_tag.text.strip()))
-                    )
-                except:
-                    pass
+                    seller_reviews_count = int("".join(filter(str.isdigit, reviews_tag.text.strip())))
+                except (ValueError, AttributeError):
+                    pass # seller_reviews_count останется None
 
         # --- СБОРКА СЛОВАРЯ ---
         ad_data = {
@@ -122,9 +114,14 @@ def parse_avito_with_selenium(url: str, num_pages: int = 1) -> List[Dict]:
     chrome_options.add_argument(
         "user-agent=Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36"
     )
-
-    # Для Docker-контейнера Airflow путь к драйверу будет стандартным
-    service = Service()
+    
+    try:
+        from webdriver_manager.chrome import ChromeDriverManager
+        service = Service(ChromeDriverManager().install())
+        log.info("Используем webdriver-manager для локального запуска.")
+    except ImportError:
+        log.info("webdriver-manager не найден. Используем системный chromedriver для Docker.")
+        service = Service()
 
     driver = webdriver.Chrome(service=service, options=chrome_options)
     log.info("Selenium WebDriver запущен.")

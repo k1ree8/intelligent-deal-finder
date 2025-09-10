@@ -1,4 +1,4 @@
 avito:
   # Просто один URL, который мы будем парсить.
   # Ты можешь вставить сюда любую страницу с результатами поиска Avito.
-  target_url: "https://www.avito.ru/all/telefony/mobilnye_telefony/apple-ASgBAgICAkS0wA3OqzmwwQ2I_Dc?context=H4sIAAAAAAAA_wEmANn_YToxOntzOjE6InkiO3M6MTY6IkJEc3lKTnJhOXZDUmxoSHMiO33bUEl4JgAAAA&d=1&p=2&s=104"
+  target_url: "https://www.avito.ru/moskva/telefony/mobilnye_telefony/apple/iphone_11-ASgBAgICA0SywA2kmzm0wA3OqzmwwQ2I_Dc?s=104"
