@@ -1,6 +1,6 @@
 # dags/data_collection_dag.py
 import json  # <-- Добавляем импорт
-from datetime import datetime
+from datetime import datetime, timedelta
 
 from airflow.decorators import dag, task
 from airflow.operators.bash import BashOperator
@@ -13,11 +13,15 @@ from airflow.operators.bash import BashOperator
     start_date=datetime(2023, 1, 1),
     catchup=False,
     tags=["avito", "data-collection"],
+        default_args={
+        'retries': 2,
+        'retry_delay': timedelta(minutes=5),
+    }
 )
 def process_avito_ads_dag():
     gather_data_task = BashOperator(
         task_id="gather_data_task",
-        bash_command='PYTHONPATH="/opt/airflow" python /opt/airflow/src/core/worker.py --pages 45',
+        bash_command='PYTHONPATH="/opt/airflow" python /opt/airflow/src/core/worker.py --pages 59',
         do_xcom_push=True,
     )
 
