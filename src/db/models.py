@@ -40,3 +40,12 @@ class Ad(Base):
 
     def __repr__(self):
         return f"<Ad(id={self.id}, title='{self.title[:30]}...')>"
+
+# --- Блок для создания/обновления таблицы ---
+if __name__ == "__main__":
+    from src.db.session import engine
+
+    print("Создаем/обновляем таблицы в базе данных...")
+    # Base.metadata.drop_all(bind=engine) # Раскомментируй, если нужно полностью пересоздать
+    Base.metadata.create_all(bind=engine)
+    print("Таблицы успешно созданы/обновлены.")

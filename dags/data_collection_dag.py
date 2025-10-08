@@ -21,7 +21,7 @@ from airflow.operators.bash import BashOperator
 def process_avito_ads_dag():
     gather_data_task = BashOperator(
         task_id="gather_data_task",
-        bash_command='PYTHONPATH="/opt/airflow" python /opt/airflow/src/core/worker.py --pages 59',
+        bash_command='PYTHONPATH="/opt/airflow" python /opt/airflow/src/core/worker.py --pages 1',
         do_xcom_push=True,
     )
 
