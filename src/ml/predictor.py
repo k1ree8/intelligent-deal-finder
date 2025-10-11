@@ -4,12 +4,12 @@ import joblib
 import json
 import pandas as pd
 from typing import List, Dict
+from src.core.config import settings
 
 # --- Константы ---
 # Пути внутри Docker-контейнера Airflow
 MODEL_PATH = "/opt/airflow/models/price_predictor_model.pkl"
 COLUMNS_PATH = "/opt/airflow/models/model_columns.json"
-PROFIT_THRESHOLD = 5000  # Минимальная "выгода" для отправки уведомления (в руб.)
 
 # --- Загружаем модель и колонки один раз при старте ---
 try:
@@ -41,6 +41,9 @@ def predict_and_filter(new_ads: List[Dict]) -> List[Dict]:
     """
     if not new_ads or model is None:
         return []
+    
+    # <-- ПОЛУЧАЕМ ПОРОГ ИЗ КОНФИГА -->
+    profit_threshold = settings.get_profit_threshold()
 
     # 1. Превращаем в DataFrame
     df = pd.DataFrame(new_ads)
@@ -62,7 +65,7 @@ def predict_and_filter(new_ads: List[Dict]) -> List[Dict]:
     df['profit'] = df['predicted_price'] - df['price']
 
     # 6. Фильтруем только выгодные предложения
-    profitable_ads_df = df[df['profit'] >= PROFIT_THRESHOLD]
+    profitable_ads_df = df[df['profit'] >= profit_threshold]
 
     # 7. Возвращаем результат в виде списка словарей
     return profitable_ads_df.to_dict('records')

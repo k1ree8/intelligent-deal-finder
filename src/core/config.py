@@ -1,6 +1,7 @@
 # src/core/config.py
 
 from pathlib import Path
+from typing import Optional
 
 import yaml
 from pydantic import PostgresDsn
@@ -55,16 +56,44 @@ class Settings(BaseSettings):
         """Собирает URL для подключения к базе данных."""
         return f"postgresql+psycopg2://{self.POSTGRES_USER}:{self.POSTGRES_PASSWORD}@{self.POSTGRES_HOST}:{self.POSTGRES_PORT}/{self.POSTGRES_DB}"
 
+    # --- Методы для доступа к настройкам из YAML ---
+
     def get_parser_url(self) -> str:
-        """
-        Просто читает и возвращает готовый URL из config.yaml.
-        """
+        """Читает и возвращает target_url из config.yaml."""
         yaml_config = load_yaml_config()
-        if "avito" in yaml_config and "target_url" in yaml_config["avito"]:
+        try:
             return yaml_config["avito"]["target_url"]
-        else:
-            log.error("Ключ 'target_url' не найден в configs/config.yaml!")
+        except (KeyError, TypeError):
+            log.error("Ключ 'avito.target_url' не найден в configs/config.yaml!")
             raise KeyError("target_url not found in config file")
+
+    def get_pages_to_scan(self) -> int:
+        """Читает и возвращает pages_to_scan из config.yaml."""
+        yaml_config = load_yaml_config()
+        try:
+            return int(yaml_config["avito"]["pages_to_scan"])
+        except (KeyError, TypeError, ValueError):
+            log.warning("Ключ 'avito.pages_to_scan' не найден или некорректен. Используется значение по умолчанию: 1.")
+            return 1 # Возвращаем значение по умолчанию, если что-то пошло не так
+
+    def get_profit_threshold(self) -> int:
+        """Читает и возвращает profit_threshold из config.yaml."""
+        yaml_config = load_yaml_config()
+        try:
+            return int(yaml_config["model"]["profit_threshold"])
+        except (KeyError, TypeError, ValueError):
+            log.warning("Ключ 'model.profit_threshold' не найден или некорректен. Используется значение по умолчанию: 5000.")
+            return 5000 # Значение по умолчанию
+
+    def get_schedule_interval(self) -> Optional[str]:
+        """Читает и возвращает schedule_interval из config.yaml."""
+        yaml_config = load_yaml_config()
+        try:
+            # Возвращает None, если значение в yaml 'null'
+            return yaml_config["airflow"]["schedule_interval"]
+        except (KeyError, TypeError):
+            log.warning("Ключ 'airflow.schedule_interval' не найден. Используется значение по умолчанию: None (ручной запуск).")
+            return None # Значение по умолчанию
 
 
 settings = Settings()

@@ -1,11 +1,11 @@
-# src/core/worker.py
+# src/core/worker.py (ФИНАЛЬНАЯ ИСПРАВЛЕННАЯ ВЕРСИЯ)
 
 import argparse
 import json
 from datetime import datetime
 from typing import Dict, List
 import pandas as pd
-import re # Импортируем для использования в фильтре
+import re
 
 from src.core.config import settings
 from src.core.logger import log
@@ -14,16 +14,22 @@ from src.db.session import SessionLocal
 from src.parsers.avito_selenium_parser import parse_avito_with_selenium
 
 
-def process_ads(num_pages: int = 1) -> List[Dict]:
+def process_ads() -> List[Dict]: # <-- УБЕДИЛИСЬ, ЧТО ЗДЕСЬ НЕТ АРГУМЕНТОВ
     """
     Основная функция-обработчик.
-    Запускает парсер, фильтрует объявления СТРОГО по формату "Модель, Память",
-    обогащает данные, проверяет наличие в БД и сохраняет новые.
+    Запускает парсер, фильтрует, обогащает, проверяет и сохраняет новые объявления.
+    Все настройки берутся из config.yaml.
     """
     log.info("Начинаем процесс обработки объявлений с помощью Selenium...")
+    
     url_to_parse = settings.get_parser_url()
+    pages_to_scan = settings.get_pages_to_scan()
+    
     log.info(f"Парсим URL из конфига: {url_to_parse}")
-    new_ads_data = parse_avito_with_selenium(url_to_parse, num_pages=num_pages)
+    log.info(f"Количество страниц для сканирования: {pages_to_scan}")
+    
+    new_ads_data = parse_avito_with_selenium(url_to_parse, num_pages=pages_to_scan)
+    
     if not new_ads_data:
         log.info("Парсер не вернул новых данных. Завершение работы.")
         print(json.dumps([]))
@@ -34,8 +40,6 @@ def process_ads(num_pages: int = 1) -> List[Dict]:
     unique_ads_list = list(unique_ads_dict.values())
     log.info(f"После дедупликации осталось {len(unique_ads_list)} уникальных записей.")
     
-    # -----------------------------------------------------------------------------
-    # --> СТРОГИЙ БЛОК ФИЛЬТРАЦИИ И ОБОГАЩЕНИЯ <--
     if not unique_ads_list:
         print(json.dumps([]))
         return []
@@ -43,28 +47,21 @@ def process_ads(num_pages: int = 1) -> List[Dict]:
     df = pd.DataFrame(unique_ads_list)
     original_count = len(df)
 
-    # 1. Определяем "идеальный" шаблон:
-    # ^iPhone ... , ... ГБ/ТБ$  (от начала и до конца строки)
     perfect_title_pattern = r'^iPhone[\w\s]+,\s\d+\s(?:ГБ|ТБ)$'
-
-    # 2. Фильтруем DataFrame, оставляя только строки, полностью соответствующие шаблону
     df = df[df['title'].str.match(perfect_title_pattern, na=False)].copy()
     log.info(f"Отфильтровано по ИДЕАЛЬНОМУ формату заголовка. Осталось {len(df)} из {original_count} объявлений.")
 
-    # 3. Разделяем 'title' на 'model' и 'memory' (теперь это на 100% безопасно)
     if not df.empty:
         split_data = df['title'].str.split(', ', n=1, expand=True)
         df['model'] = split_data[0].str.strip()
         df['memory'] = split_data[1].str.strip()
         log.info("Столбец 'title' успешно разделен на 'model' и 'memory'.")
     else:
-        # Если после фильтрации ничего не осталось, создаем пустые колонки
         df['model'] = pd.Series(dtype='str')
         df['memory'] = pd.Series(dtype='str')
 
     unique_ads_list = df.to_dict('records')
-    # -----------------------------------------------------------------------------
-
+    
     ads_to_add_data = []
     with SessionLocal() as db:
         new_avito_ids = {ad["avito_id"] for ad in unique_ads_list}
@@ -99,9 +96,6 @@ def process_ads(num_pages: int = 1) -> List[Dict]:
             return []
 
 if __name__ == "__main__":
-    parser = argparse.ArgumentParser(description="Запуск воркера для сбора объявлений.")
-    parser.add_argument(
-        "--pages", type=int, default=1, help="Количество страниц для парсинга."
-    )
-    args = parser.parse_args()
-    process_ads(num_pages=args.pages)
+    # <-- УДАЛИЛИ ПАРСИНГ АРГУМЕНТОВ -->
+    # Теперь просто вызываем основную функцию, которая сама берет настройки из конфига
+    process_ads()

@@ -1,4 +1,23 @@
+# configs/config.yaml
+
+# --- Настройки парсера ---
 avito:
-  # Просто один URL, который мы будем парсить.
-  # Ты можешь вставить сюда любую страницу с результатами поиска Avito.
-  target_url: "https://www.avito.ru/moskva/telefony/mobilnye_telefony/apple-ASgBAgICAkS0wA3OqzmwwQ2I_Dc?f=ASgBAQICA0S0wA3OqzmwwQ2I_Dfyig6kgpQBAUDo6w4k_P3bAvr92wI&localPriority=0&s=104&user=1"
+  # URL, который мы будем парсить.
+  # Мы можем легко менять его, чтобы искать, например, только iPhone 15 Pro
+  target_url: "https://www.avito.ru/moskva/telefony/mobilnye_telefony/apple-ASgBAgICAkS0wA3OqzmwwQ2I_Dc?f=ASgBAQICA0S0wA3OqzmwwQ2I_Dfyig6kgpQBAUDo6w4k_P3bAvr92wI&s=104&user=1"
+  
+  # Количество страниц, которые парсер должен просканировать за один запуск DAG
+  pages_to_scan: 1
+
+# --- Настройки ML Модели ---
+model:
+  # Минимальная выгода (в рублях), при которой объявление считается "выгодным"
+  # и отправляется уведомление в Telegram.
+  profit_threshold: 5000
+
+# --- Настройки Airflow DAG ---
+airflow:
+  # Расписание запуска DAG в формате cron.
+  # '*/30 * * * *' - каждые 30 минут
+  # null - для ручного запуска
+  schedule_interval: '*/30 * * * *'
