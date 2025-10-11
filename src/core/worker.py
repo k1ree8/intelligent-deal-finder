@@ -4,6 +4,7 @@ import argparse
 import json
 from datetime import datetime
 from typing import Dict, List
+import pandas as pd
 
 from src.core.config import settings
 from src.core.logger import log
@@ -15,7 +16,8 @@ from src.parsers.avito_selenium_parser import parse_avito_with_selenium
 def process_ads(num_pages: int = 1) -> List[Dict]:
     """
     Основная функция-обработчик.
-    Запускает Selenium-парсер, удаляет дубликаты, проверяет наличие в БД и сохраняет новые.
+    Запускает Selenium-парсер, фильтрует объявления по формату заголовка,
+    обогащает данные, удаляет дубликаты, проверяет наличие в БД и сохраняет новые.
 
     Args:
         num_pages: Количество страниц для парсинга.
@@ -42,12 +44,46 @@ def process_ads(num_pages: int = 1) -> List[Dict]:
     unique_ads_dict = {ad["avito_id"]: ad for ad in new_ads_data}
     unique_ads_list = list(unique_ads_dict.values())
     log.info(f"После дедупликации осталось {len(unique_ads_list)} уникальных записей.")
-    # -------------------------
+
+    # -----------------------------------------------------------------------------
+    # --> БЛОК ФИЛЬТРАЦИИ И ОБОГАЩЕНИЯ ДАННЫХ <--
+    if not unique_ads_list:
+        print(json.dumps([]))
+        return []
+        
+    df = pd.DataFrame(unique_ads_list)
+
+    # 1. Фильтруем только те заголовки, которые содержат запятую (формат "Модель, Память")
+    original_count = len(df)
+    df = df[df['title'].str.contains(',', na=False)].copy() # .copy() чтобы избежать Warning
+    log.info(f"Отфильтровано по формату заголовка 'Модель, Память'. Осталось {len(df)} из {original_count} объявлений.")
+
+    # 2. Разделяем 'title' на 'model' и 'memory' (теперь это безопасно)
+    if not df.empty:
+        split_data = df['title'].str.split(', ', n=1, expand=True)
+        df['model'] = split_data[0].str.strip()
+        df['memory'] = split_data[1].str.strip()
+        log.info("Столбец 'title' успешно разделен на 'model' и 'memory'.")
+    else:
+        # Если после фильтрации ничего не осталось, создаем пустые колонки
+        # чтобы структура данных не ломалась дальше
+        df['model'] = pd.Series(dtype='str')
+        df['memory'] = pd.Series(dtype='str')
+
+    # Конвертируем DataFrame обратно в список словарей
+    unique_ads_list = df.to_dict('records')
+    # -----------------------------------------------------------------------------
 
     ads_to_add_data = []
     with SessionLocal() as db:
         new_avito_ids = {ad["avito_id"] for ad in unique_ads_list}
 
+        # Если после фильтрации не осталось объявлений, выходим раньше
+        if not new_avito_ids:
+            log.info("После фильтрации по формату заголовка не осталось объявлений для обработки.")
+            print(json.dumps([]))
+            return []
+            
         existing_ads_query = db.query(Ad.avito_id).filter(
             Ad.avito_id.in_(new_avito_ids)
         )

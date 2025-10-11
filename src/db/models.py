@@ -10,7 +10,6 @@ from sqlalchemy import (
     Float,
 )
 from sqlalchemy.ext.declarative import declarative_base
-from sqlalchemy.sql import func
 
 Base = declarative_base()
 
@@ -27,19 +26,26 @@ class Ad(Base):
 
     # Основные данные объявления
     title = Column(String(255), nullable=False)
-    price = Column(Integer, nullable=True) # Может быть None, если цена не указана
+    price = Column(Integer, nullable=True) 
     description = Column(Text, nullable=True)
     location = Column(String(255), nullable=True)
     published_at = Column(DateTime(timezone=True), nullable=False, index=True)
     condition = Column(String(50), nullable=True)
+    
+    # -----------------------------------------------------------------------------
+    # --> ДОБАВЛЕННЫЕ ПОЛЯ <--
+    # Новые поля для модели и объема памяти
+    model = Column(String(255), nullable=True, index=True)
+    memory = Column(String(255), nullable=True, index=True)
+    # -----------------------------------------------------------------------------
 
     # Данные о продавце
     seller_name = Column(String(255), nullable=True)
     seller_rating = Column(Float, nullable=True)
-    seller_reviews_count = Column(Integer, nullable=True)
+    seller_reviews_count = Column(Float, nullable=True)
 
     def __repr__(self):
-        return f"<Ad(id={self.id}, title='{self.title[:30]}...')>"
+        return f"<Ad(id={self.avito_id}, title='{self.title[:30]}...')>"
 
 # --- Блок для создания/обновления таблицы ---
 if __name__ == "__main__":

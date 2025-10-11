@@ -1,5 +1,6 @@
 # dags/data_collection_dag.py
-import json  # <-- Добавляем импорт
+
+import json
 from datetime import datetime, timedelta
 
 from airflow.decorators import dag, task
@@ -8,12 +9,12 @@ from airflow.operators.bash import BashOperator
 
 @dag(
     dag_id="process_avito_ads",
-    description="DAG для сбора, обработки и уведомления о новых объявлениях с Avito.",
+    description="DAG для сбора, обработки и уведомления о НОВЫХ ВЫГОДНЫХ объявлениях с Avito.",
     schedule_interval=None,
     start_date=datetime(2023, 1, 1),
     catchup=False,
-    tags=["avito", "data-collection"],
-        default_args={
+    tags=["avito", "data-collection", "ml"],
+    default_args={
         'retries': 2,
         'retry_delay': timedelta(minutes=5),
     }
@@ -25,49 +26,65 @@ def process_avito_ads_dag():
         do_xcom_push=True,
     )
 
-    #    backfill_data_task = BashOperator(
-    #        task_id='backfill_data_task',
-    #        bash_command='PYTHONPATH="/opt/airflow" python /opt/airflow/src/core/worker.py --sort',
-    #        do_xcom_push=True,
-    #    )
-
     @task
-    def send_notifications_task(ads_json_str: str):
+    def predict_and_filter_task(all_new_ads_json: str): # <-- НОВАЯ ЗАДАЧА
         """
-        Принимает JSON-строку с объявлениями, парсит ее и отправляет уведомления.
+        Загружает модель, предсказывает цены и фильтрует только выгодные объявления.
         """
         import sys
-
         sys.path.insert(0, "/opt/airflow")
-        # Явно преобразуем JSON-строку в Python-объект
+        from src.ml.predictor import predict_and_filter
+
         try:
-            new_ads = json.loads(ads_json_str)
+            new_ads = json.loads(all_new_ads_json)
         except (json.JSONDecodeError, TypeError):
             new_ads = []
 
         if not new_ads:
-            print("Новых объявлений нет, уведомление не отправляем.")
-            return
+            return json.dumps([])
 
-        print(f"Отправляем уведомления для {len(new_ads)} объявлений.")
+        profitable_ads = predict_and_filter(new_ads)
+        return json.dumps(profitable_ads)
 
+    @task
+    def send_notifications_task(profitable_ads_json: str): # <-- ИЗМЕНЕНО
+        """
+        Принимает JSON-строку с ВЫГОДНЫМИ объявлениями и отправляет уведомления.
+        """
         import sys
-
-        sys.path.insert(0, "/opt/airflow/src")
+        sys.path.insert(0, "/opt/airflow")
         from src.core.sender import send_telegram_message
 
-        for ad in new_ads:
+        try:
+            profitable_ads = json.loads(profitable_ads_json)
+        except (json.JSONDecodeError, TypeError):
+            profitable_ads = []
+
+        if not profitable_ads:
+            print("Выгодных объявлений нет, уведомление не отправляем.")
+            return
+
+        print(f"Отправляем уведомления для {len(profitable_ads)} ВЫГОДНЫХ объявлений.")
+        
+        for ad in profitable_ads:
+            # <-- ФОРМАТ СООБЩЕНИЯ ИЗМЕНЕН
+            profit = int(ad.get('profit', 0))
+            predicted_price = int(ad.get('predicted_price', 0))
+            
             message = (
-                f"<b>🔥 Новое объявление: {ad.get('title', 'Без заголовка')} 🔥</b>\n\n"
-                f"<b>Цена:</b> {ad.get('price', 'Не указана')} руб.\n"
+                f"<b>🔥🔥🔥 Найдено выгодное предложение! 🔥🔥🔥</b>\n\n"
+                f"<b>{ad.get('title', 'Без заголовка')}</b>\n\n"
+                f"<b>Цена:</b> {ad.get('price', 'N/A')} руб.\n"
+                f"<b>Ожидаемая цена:</b> {predicted_price} руб.\n"
+                f"<b>💥 ВЫГОДА: ~{profit} руб. 💥</b>\n\n"
                 f"<a href='{ad.get('url', '#')}'>🔗 Ссылка на объявление</a>"
             )
             send_telegram_message(message)
 
-    gather_data_task
-
-    # Вызываем вторую задачу, передавая ей результат первой
-    # send_notifications_task(gather_data_task.output)
+    # <-- ИЗМЕНЕНА ПОСЛЕДОВАТЕЛЬНОСТЬ ЗАДАЧ
+    all_ads = gather_data_task.output
+    profitable_ads = predict_and_filter_task(all_ads)
+    send_notifications_task(profitable_ads)
 
 
 process_avito_ads_dag()
