@@ -6,13 +6,9 @@ __pycache__/
 logs/
 data/
 *.log
-.ruff_cache/
 
-# --- Jupyter Notebook ---
 .ipynb_checkpoints
 
-# --- Data Files ---
-# Игнорировать все файлы в папке data, кроме .gitkeep (если он нужен для пустой папки)
 data/*
 !data/.gitkeep
 *.csv
@@ -21,20 +17,9 @@ data/*
 *.xls
 *.xlsx
 
-# --- Model Artifacts ---
-# Никогда не коммитить обученные модели в Git!
+models/
 *.pkl
-*.pickle
-*.joblib
-*.h5
-*.pth
 
-# --- Reports & Logs ---
-# (папка logs у нас уже есть, но добавим еще правила)
 reports/
 *.html
-*.md # Игнорировать Markdown-файлы вне основной структуры
-
-# --- OS-specific ---
-.DS_Store?
-Thumbs.db
+*.md

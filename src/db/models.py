@@ -1,5 +1,3 @@
-# src/db/models.py
-
 from sqlalchemy import (
     Column,
     Integer,
@@ -20,26 +18,17 @@ class Ad(Base):
     """
     __tablename__ = 'ads'
 
-    # Основные идентификаторы
     avito_id = Column(BigInteger, primary_key=True, unique=True, nullable=False, index=True)
     url = Column(String(500), nullable=False)
 
-    # Основные данные объявления
     title = Column(String(255), nullable=False)
     price = Column(Integer, nullable=True) 
     description = Column(Text, nullable=True)
     location = Column(String(255), nullable=True)
     published_at = Column(DateTime(timezone=True), nullable=False, index=True)
     condition = Column(String(50), nullable=True)
-    
-    # -----------------------------------------------------------------------------
-    # --> ДОБАВЛЕННЫЕ ПОЛЯ <--
-    # Новые поля для модели и объема памяти
     model = Column(String(255), nullable=True, index=True)
     memory = Column(String(255), nullable=True, index=True)
-    # -----------------------------------------------------------------------------
-
-    # Данные о продавце
     seller_name = Column(String(255), nullable=True)
     seller_rating = Column(Float, nullable=True)
     seller_reviews_count = Column(Float, nullable=True)
@@ -47,11 +36,9 @@ class Ad(Base):
     def __repr__(self):
         return f"<Ad(id={self.avito_id}, title='{self.title[:30]}...')>"
 
-# --- Блок для создания/обновления таблицы ---
 if __name__ == "__main__":
     from src.db.session import engine
 
     print("Создаем/обновляем таблицы в базе данных...")
-    # Base.metadata.drop_all(bind=engine) # Раскомментируй, если нужно полностью пересоздать
     Base.metadata.create_all(bind=engine)
     print("Таблицы успешно созданы/обновлены.")

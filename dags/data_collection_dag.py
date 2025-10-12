@@ -1,11 +1,8 @@
-# dags/data_collection_dag.py (исправленная версия)
-
 import json
 from datetime import datetime, timedelta
 
 from airflow.decorators import dag, task
 from airflow.operators.bash import BashOperator
-# <-- УДАЛИЛИ ИМПОРТ 'settings' ОТСЮДА -->
 
 
 def get_schedule_from_config():
@@ -14,7 +11,7 @@ def get_schedule_from_config():
     чтобы безопасно получить расписание.
     """
     import sys
-    sys.path.insert(0, "/opt/airflow") # Временно добавляем src в путь
+    sys.path.insert(0, "/opt/airflow")
     from src.core.config import settings
     return settings.get_schedule_interval()
 
@@ -22,7 +19,7 @@ def get_schedule_from_config():
 @dag(
     dag_id="process_avito_ads",
     description="DAG для сбора, обработки и уведомления о НОВЫХ ВЫГОДНЫХ объявлениях с Avito.",
-    schedule_interval=get_schedule_from_config(), # <-- ТЕПЕРЬ ПОЛУЧАЕМ РАСПИСАНИЕ ТАК
+    schedule_interval=get_schedule_from_config(),
     start_date=datetime(2023, 1, 1),
     catchup=False,
     tags=["avito", "data-collection", "ml"],
@@ -44,7 +41,7 @@ def process_avito_ads_dag():
         Загружает модель, предсказывает цены и фильтрует только выгодные объявления.
         """
         import sys
-        sys.path.insert(0, "/opt/airflow") # <-- Этот импорт здесь уже был и он правильный
+        sys.path.insert(0, "/opt/airflow")
         from src.ml.predictor import predict_and_filter
 
         try:
@@ -65,7 +62,7 @@ def process_avito_ads_dag():
         Принимает JSON-строку с ВЫГОДНЫМИ объявлениями и отправляет уведомления.
         """
         import sys
-        sys.path.insert(0, "/opt/airflow") # <-- Этот импорт здесь уже был и он правильный
+        sys.path.insert(0, "/opt/airflow")
         from src.core.sender import send_telegram_message
 
         try:

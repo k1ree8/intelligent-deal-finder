@@ -1,5 +1,3 @@
-# src/parsers/utils.py
-
 from datetime import datetime, timedelta
 from typing import Union
 
@@ -25,7 +23,6 @@ def parse_relative_date(relative_date_str: str) -> Union[datetime, None]:
             hour, minute = map(int, time_str.split(":"))
             return yesterday.replace(hour=hour, minute=minute, second=0, microsecond=0)
 
-        # Обработка "Х минут/часов/дней назад"
         parts = relative_date_str.split()
         if len(parts) == 3 and "назад" in parts:
             value = int(parts[0])
@@ -38,8 +35,6 @@ def parse_relative_date(relative_date_str: str) -> Union[datetime, None]:
             if "ден" in unit or "дня" in unit or "дней" in unit:
                 return now - timedelta(days=value)
 
-        # Если ни один формат не подошел, возвращаем None
         return None
     except (ValueError, IndexError):
-        # В случае любой ошибки парсинга
         return None

@@ -1,5 +1,3 @@
-# src/parsers/avito_selenium_parser.py
-
 import json
 import random
 import re
@@ -28,7 +26,6 @@ def _parse_single_ad_block(ad_block_soup: BeautifulSoup) -> Union[Dict, None]:
         if not all([title_tag, avito_id_raw]):
             return None
 
-        # --- ИЗВЛЕКАЕМ КАЖДОЕ ПОЛЕ БЕЗОПАСНО, ИСПОЛЬЗУЯ None КАК ЗНАЧЕНИЕ ПО УМОЛЧАНИЮ ---
         
         price = None
         if price_tag := ad_block_soup.find("meta", {"itemprop": "price"}):
@@ -37,7 +34,7 @@ def _parse_single_ad_block(ad_block_soup: BeautifulSoup) -> Union[Dict, None]:
             except (ValueError, TypeError):
                 pass
 
-        published_at = datetime.now() # Запасное значение
+        published_at = datetime.now()
         if date_tag := ad_block_soup.find("p", {"data-marker": "item-date"}):
             published_at = parse_relative_date(date_tag.text.strip()) or published_at
         
@@ -72,15 +69,14 @@ def _parse_single_ad_block(ad_block_soup: BeautifulSoup) -> Union[Dict, None]:
                 try:
                     seller_rating = float(rating_tag.text.strip().replace(",", "."))
                 except (ValueError, AttributeError):
-                    pass # seller_rating останется None
+                    pass
             
             if reviews_tag := seller_link.select_one('[data-marker="seller-info/summary"]'):
                 try:
                     seller_reviews_count = int("".join(filter(str.isdigit, reviews_tag.text.strip())))
                 except (ValueError, AttributeError):
-                    pass # seller_reviews_count останется None
+                    pass
 
-        # --- СБОРКА СЛОВАРЯ ---
         ad_data = {
             "avito_id": int(avito_id_raw.lstrip("i")),
             "title": title_tag.text.strip(),

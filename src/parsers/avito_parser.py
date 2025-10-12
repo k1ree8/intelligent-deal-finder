@@ -1,5 +1,3 @@
-# src/parsers/avito_parser.py
-
 import json
 import random
 import re
@@ -58,7 +56,6 @@ def parse_avito_ads(url: str, save_html: bool = False) -> List[Dict]:
 
     for ad_block in ads_blocks:
         try:
-            # --- ИЗВЛЕКАЕМ ВСЕ НУЖНЫЕ ТЕГИ ---
             title_tag = ad_block.find("a", {"data-marker": "item-title"})
             price_tag = ad_block.find("meta", {"itemprop": "price"})
             avito_id_raw = ad_block.get("id")
@@ -67,10 +64,8 @@ def parse_avito_ads(url: str, save_html: bool = False) -> List[Dict]:
             if not all([title_tag, avito_id_raw, date_tag]):
                 continue
 
-            # --- ОБРАБОТКА ДАННЫХ ---
             published_at = parse_relative_date(date_tag.text.strip()) or datetime.now()
 
-            # --- ГИБРИДНАЯ ЛОГИКА ДЛЯ LOCATION ---
             location = "Местоположение не указано"
             location_tag = ad_block.select_one('[class*="geo-root-"] span')
             if location_tag:
@@ -96,7 +91,6 @@ def parse_avito_ads(url: str, save_html: bool = False) -> List[Dict]:
             ):
                 description = description_tag.text.strip()
 
-            # --- ОБРАБОТКА ДАННЫХ О ПРОДАВЦЕ ---
             seller_name = "Имя не указано"
             seller_rating = 0.0
             seller_reviews_count = 0
@@ -123,7 +117,6 @@ def parse_avito_ads(url: str, save_html: bool = False) -> List[Dict]:
                 except (ValueError, AttributeError):
                     pass
 
-            # --- СБОРКА СЛОВАРЯ ---
             ad_data = {
                 "avito_id": int(avito_id_raw.lstrip("i")),
                 "title": title_tag.text.strip(),
@@ -145,28 +138,3 @@ def parse_avito_ads(url: str, save_html: bool = False) -> List[Dict]:
 
     log.info(f"Успешно распарсено {len(parsed_ads)} объявлений.")
     return parsed_ads
-
-
-# --- ТЕСТОВЫЙ БЛОК ДЛЯ ПОЛНОГО АНАЛИЗА ---
-if __name__ == "__main__":
-    test_url = "https://www.avito.ru/all/telefony/mobilnye_telefony/apple-ASgBAgICAkS0wA3OqzmwwQ2I_Dc?context=H4sIAAAAAAAA_wEmANn_YToxOntzOjE6InkiO3M6MTY6IkRYZEpJV3IxcWZFMkFtanUiO32A0ydVJgAAAA&d=1&s=104"
-
-    results = parse_avito_ads(test_url, save_html=True)
-
-    if results:
-        timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-        output_filename = f"parsed_ads_{timestamp}.json"
-
-        for ad in results:
-            if isinstance(ad.get("published_at"), datetime):
-                ad["published_at"] = ad["published_at"].isoformat()
-
-        with open(output_filename, "w", encoding="utf-8") as f:
-            json.dump(results, f, indent=2, ensure_ascii=False)
-
-        print(
-            f"\nАнализ завершен. {len(results)} объявлений сохранено в файл: {output_filename}"
-        )
-        print("Открой сохраненный .html файл в браузере и сравни его с .json файлом.")
-    else:
-        print("Не удалось получить объявления для анализа.")
