@@ -67,7 +67,7 @@
 
 1.  **Клонируйте репозиторий:**
     ```bash
-    git clone (URL вашего репозитория)
+    git clone https://github.com/k1ree8/intelligent-deal-finder.git
     cd intelligent-deal-finder
     ```
 
