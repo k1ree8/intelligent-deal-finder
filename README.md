@@ -128,10 +128,10 @@
     # 3. Внутри контейнера подключиться к psql
     psql -U (ваш POSTGRES_USER) -d (ваш POSTGRES_DB)
     # 4. Внутри psql выполнить экспорт
-    \copy (SELECT * FROM ads) to '/tmp/ads_backup.csv' WITH (FORMAT CSV, HEADER);
+    \copy (SELECT * FROM ads) to '/tmp/ads_export.csv' WITH (FORMAT CSV, HEADER);
     # 5. Выйти из psql (\q) и из контейнера (exit)
     # 6. Скопировать файл на локальную машину
-    docker cp (ID контейнера app-db):/tmp/ads_backup.csv ./data/ads_backup.csv
+    docker cp (ID контейнера app-db):/tmp/ads_export.csv ./data/ads_export.csv
     ```
 
 2.  **Запустите ноутбук:** Откройте `notebooks/model_retraining.ipynb` и выполните все ячейки (`Run All Cells`).
